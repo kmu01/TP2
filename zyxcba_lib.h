@@ -1,8 +1,8 @@
-#include "hash.h"
-#include "abb.h"
-#include "cola.h"
-#include "lista.h"
-#include "heap.h"
+#include "hash/hash.h"
+#include "abb/abb.h"
+#include "cola/cola.h"
+#include "lista/lista.h"
+#include "heap/heap.h"
 
 
 struct clinica;
@@ -37,7 +37,7 @@ bool doctor_eliminar (doctor_t* doctor);
 paciente_t* doctor_atender_paciente (doctor_t* doctor);
 
 
-especialidad_t* especialidad_crear (void);
+especialidad_t* especialidad_crear (char* nombre);
 bool especialidad_eliminar (especialidad_t* especialidad);
 
 int comparacion_años (paciente_t* a , paciente_t* b);
