@@ -1,13 +1,58 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "zyxcba_lib.h"
 #include "mensajes.h"
 
 
+//***************************  DEFINICIÒN DE ESTRUCTURAS  ***************************
 /*   Defino el struct clinica   */
-typedef struct clinica{
+struct clinica{
     hash_t* especialidades;
     abb_t* doctores;
     hash_t* pacientes;
-}clinica_t;
+};
+
+/*   Defino el struct paciente   */
+typedef struct paciente{
+    char* nombre;
+    size_t anio;
+} paciente_t;
+
+/*   Defino el struct especialidad   */
+typedef struct especialidad{
+    char* nombre;
+    cola_t* urgentes;
+    heap_t* regulares;
+    size_t sin_atender;
+} especialidad_t;
+
+/*   Defino el struct doctor   */
+typedef struct doctor{
+    char* nombre;
+    especialidad_t* especialidad;
+    size_t pacientes_atendidos;
+} doctor_t;
+
+//***************************  AUXILIARES  ***************************
+
+bool contar_doctores(const char *clave, void *valor, void *extra) {
+    size_t* cont = extra;
+    *cont = *cont + 1;
+    return true;
+}
+
+bool imprimir_doctores(const char *clave, void *valor, void *extra) {
+    size_t* cont = extra;
+    *cont = *cont + 1;
+    doctor_t* doctor = valor;
+    printf(INFORME_DOCTOR, *cont, doctor->nombre, doctor->especialidad, doctor->pacientes_atendidos);
+    return true;
+}
+
+
+//***************************  CLÌNICA  ***************************
 
 
 /*   Creo primitivas de la clinica   */
@@ -30,7 +75,7 @@ void clinica_destruir (clinica_t* clinica){
     return;
 }
 
-size_t clinica_obtener_espera (clinica_t* clinica , char* nombre_especialidad){
+size_t clinica_obtener_espera(clinica_t* clinica , char* nombre_especialidad){
     especialidad_t* especialidad = hash_obtener (clinica->especialidades , nombre_especialidad);
     return especialidad->sin_atender;
 }
@@ -47,21 +92,26 @@ doctor_t* clinica_obtener_doctor (clinica_t* clinica , char* nombre){
     return abb_obtener (clinica->doctores , nombre);
 }
 
-bool clinica_pedir_turno_urgente (paciente_t* paciente, especialidad_t* especialidad){
-    if (paciente == NULL || especialidad == NULL){
-        return false;
-    }
-    paciente_pedir_turno_urgente (paciente , especialidad);
-    especialidad->sin_atender ++;
-    return true;
+bool clinica_existe_doctor (clinica_t* clinica , char* nombre){
+    return abb_obtener(clinica->doctores , nombre) != NULL;
 }
 
-bool clinica_pedir_turno_regular (paciente_t* paciente, especialidad_t* especialidad){
-    if (paciente == NULL || especialidad == NULL){
+bool clinica_pedir_turno(clinica_t *clinica, char* nombre_paciente, char* nombre_especialidad, bool urgencia){
+    paciente_t* paciente = clinica_obtener_paciente(clinica , nombre_paciente);
+    if (paciente == NULL){
+        printf (ENOENT_PACIENTE, nombre_paciente);
         return false;
     }
-    paciente_pedir_turno_regular(paciente , especialidad);
-    especialidad->sin_atender ++;
+    especialidad_t* especialidad = clinica_obtener_especialidad(clinica , nombre_especialidad);
+    if (especialidad == NULL){
+        printf (ENOENT_ESPECIALIDAD , nombre_especialidad);
+        return false;
+    }
+    if (urgencia)
+        paciente_pedir_turno_urgente(paciente, especialidad);
+    else
+        paciente_pedir_turno_regular(paciente, especialidad);
+    especialidad->sin_atender++;
     return true;
 }
 
@@ -73,28 +123,32 @@ void clinica_atender_paciente (clinica_t* clinica, char* nombre_doctor){
         printf (SIN_PACIENTES);
         return;
     }
-    paciente_t* paciente = doctor_atender_paciente (doctor);
+    paciente_t* paciente = doctor_atender_paciente(doctor);
     printf (PACIENTE_ATENDIDO,paciente->nombre);
     printf (CANT_PACIENTES_ENCOLADOS, especialidad->sin_atender, especialidad->nombre);
     return;
 }
 
+void clinica_crear_informe(clinica_t *clinica, char *ini, char *fin){
+    size_t cont = 0;
+    if (strcmp(ini, "") == 0) ini = NULL;
+	if (strcmp(fin, "") == 0) fin = NULL;
+    abb_in_order(clinica->doctores, ini, fin, contar_doctores, cont);
+    cont = 0;
+    abb_in_order(clinica->doctores, ini, fin, imprimir_doctores, cont);
+}
 
+//***************************  PACIENTE  ***************************
 
-/*   Defino el struct paciente   */
-typedef struct paciente{
-    char* nombre;
-    size_t año;
-}paciente_t;
 
 /*   Creo primitivas de paciente   */
-paciente_t* paciente_crear (char* nombre , size_t año){
+paciente_t* paciente_crear (char* nombre , size_t anio){
     paciente_t* paciente = malloc (sizeof(paciente_t));
     if (paciente == NULL){
         return NULL;
     }
     paciente->nombre = nombre;
-    paciente->año = año;
+    paciente->anio = anio;
     return paciente;
 }
 
@@ -112,13 +166,9 @@ bool paciente_pedir_turno_regular (paciente_t* paciente , especialidad_t* especi
     return heap_encolar (especialidad->regulares , paciente);
 }
 
+//***************************  DOCTOR  ***************************
 
-/*   Defino el struct doctor   */
-typedef struct doctor{
-    char* nombre;
-    especialidad_t* especialidad;
-    size_t pacientes_atendidos;
-}doctor_t;
+
 
 /*   Creo las primirivas de doctor   */
 doctor_t* doctor_crear (char* nombre , especialidad_t* especialidad){
@@ -140,30 +190,23 @@ bool doctor_eliminar (doctor_t* doctor){
 paciente_t* doctor_atender_paciente (doctor_t* doctor){
     cola_t* cola_urgentes = doctor->especialidad->urgentes;
     if (!cola_esta_vacia(cola_urgentes)){
-        doctor->especialidad->sin_atender --;
+        doctor->especialidad->sin_atender--;
         return cola_desencolar(cola_urgentes);
     }
-    doctor->especialidad->sin_atender --;
+    doctor->especialidad->sin_atender--;
     heap_t* heap_regulares = doctor->especialidad->regulares;
-
     return heap_desencolar (heap_regulares);
 }
 
-/*   Defino el struct especialidad   */
-typedef struct especialidad{
-    char* nombre;
-    cola_t* urgentes;
-    heap_t* regulares;
-    size_t sin_atender;
-}especialidad_t;
 
+//***************************  ESPECIALIDAD  ***************************
 
-/*   Funcion comparacion de años   */
-int comparacion_años (paciente_t* a , paciente_t* b){
-    if (a->año < b->año){
+/*   Funcion comparacion de anios   */
+int comparacion_anios (paciente_t* a , paciente_t* b){
+    if (a->anio < b->anio){
         return -1;
     }
-    else if (a->año > b->año){
+    else if (a->anio > b->anio){
         return 1;
     }
     return 0;
@@ -180,7 +223,7 @@ especialidad_t* especialidad_crear (char* nombre){
         free (especialidad);
         return NULL;
     }
-    heap_t* regulares = heap_crear (comparacion_años);
+    heap_t* regulares = heap_crear (comparacion_anios);
     if (regulares == NULL){
         free (especialidad);
         free (urgentes);
@@ -200,3 +243,74 @@ bool especialidad_eliminar (especialidad_t* especialidad){
     free (especialidad);
     return true;
 }
+
+
+//***************************  CARGA DE DATOS  ***************************
+
+
+void eliminar_fin_linea(char* linea) {
+	size_t len = strlen(linea);
+	if (linea[len - 1] == '\n') {
+		linea[len - 1] = '\0';
+	}
+}
+
+int procesar_doctores (char* archivo , abb_t* doctores , hash_t* especialidades){
+	char* linea = NULL;
+	size_t buffer = 0;
+	FILE* archivo_abierto = fopen(archivo , r);
+	if (archivo_abierto == NULL){
+		return 1;
+	}
+	while (getline(&linea , &buffer , archivo) > 0){
+		eliminar_fin_linea(linea);
+		char** campos = split (linea , ',');
+		if (!hash_pertenece (especialidades , campos[1])){
+			char* nombre_especialidad = malloc (sizeof (campos[1]));
+			strcpy (nombre_especialidad , campos[1]);
+			especialidad_t* especialidad = especialidad_crear (nombre_especialidad);
+			hash_guardar (especialidades , campos[1] , especialidad);
+		}
+		especialidad_t* especialidad = hash_obtener (especialidades , campos[1]);
+		doctor_t* doctor = doctor_crear (campos[0] , especialidad);
+		abb_guardar (doctores , campos[0] , doctor);
+		free_strv(campos);
+	}
+	return 0;
+}
+
+int procesar_pacientes (char* archivo , hash_t* pacientes){
+	char* linea = NULL;
+	size_t buffer = 0;
+	FILE* archivo_abierto = fopen(archivo , r);
+	if (archivo_abierto == NULL){
+		return 1;
+	}
+	while (getline(&linea , &buffer , archivo_abierto) > 0){
+		eliminar_fin_linea(linea);
+		char** campos = split (linea , ',');
+		char* nombre_paciente = malloc (sizeof(campos[0]));
+		strcpy (nombre_paciente, campos[0]);
+		if (!isdigit (campos[1])){
+			return 1;
+		}
+		size_t anio = size_t(campos[1]);
+		paciente_t* paciente = paciente_crear (nombre_paciente , anio);
+		hash_guardar (pacientes , campos[0] , paciente);
+		free_strv(campos);
+	}
+	return 0;
+}
+
+int cargar_doctores_y_especialidades(char* archivo, abb_t* doctores, hash_t* especialidades){
+    doctores = abb_crear(strcmp , doctor_eliminar);
+    especialidades = hash_crear(especialidad_eliminar);
+    return procesar_doctores(archivo , doctores , especialidades);
+}
+
+hash_t* cargar_pacientes(char* archivo){
+    hash_t *pacientes = hash_crear(paciente_eliminar);
+    if (procesar_pacientes(archivo, pacientes) == 1) return NULL;
+    return pacientes;
+}
+

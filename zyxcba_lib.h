@@ -1,43 +1,40 @@
 #include "hash/hash.h"
 #include "abb/abb.h"
 #include "cola/cola.h"
-#include "lista/lista.h"
 #include "heap/heap.h"
+#include "strutil/strutil.h"
+#include <stdbool.h>
 
-
-struct clinica;
 typedef struct clinica clinica_t;
-struct doctor;
-typedef struct doctor doctor_t;
-struct paciente;
-typedef struct paciente paciente_t;
-struct especialidad;
-typedef struct especialidad especialidad_t;
 
+void eliminar_fin_linea(char* linea);
 
-clinica_t* clinica_crear (hash_t* especialidades,abb_t* doctores,hash_t* pacientes);
+/*
+ * Recibe un archivo de pacientes que contiene su 
+ * nombre y el año en el que se inscribieron. A partir de este
+ * devuelve un hash donde se almacena la informaciòn de todos los pacientes.
+ * En caso de error devuelve NULL
+ */
+hash_t* cargar_pacientes(char* archivo);
+
+/*
+ * Recibe un archivo de doctores que contiene su nombre y especialidad,
+ * un abb donde almacenar los doctores y un hash para las especialidades.
+ * Si se pudieron cargar los datos devuelve 0.
+ * En caso de error devuelve 1.
+ */
+int cargar_doctores_y_especialidades(char* archivo, abb_t* doctores, hash_t* especialidades);
+
+clinica_t* clinica_crear (hash_t* especialidades, abb_t* doctores, hash_t* pacientes);
+
 void clinica_destruir (clinica_t* clinica);
+
 size_t clinica_obtener_espera (clinica_t* clinica , char* nombre_especialidad);
-paciente_t* clinica_obtener_paciente (clinica_t* clinica , char* nombre);
-especialidad_t* clinica_obtener_especialidad (clinica_t* clinica, char* nombre);
-doctor_t* clinica_obtener_doctor (clinica_t* clinica , char* nombre);
-bool clinica_pedir_turno_urgente (paciente_t* paciente, especialidad_t* especialidad);
-bool clinica_pedir_turno_regular (paciente_t* paciente, especialidad_t* especialidad);
+
+bool clinica_existe_doctor (clinica_t* clinica , char* nombre);
+
+bool clinica_pedir_turno(clinica_t *clinica, char* nombre_paciente, char* nombre_especialidad, bool urgencia);
+
 void clinica_atender_paciente (clinica_t* clinica, char* nombre_doctor);
 
-
-paciente_t* paciente_crear (char* nombre , size_t año);
-bool paciente_eliminar (paciente_t* paciente);
-bool paciente_pedir_turno_urgente (paciente_t* paciente , especialidad_t* especialidad);
-bool paciente_pedir_turno_regular (paciente_t* paciente , especialidad_t* especialidad);
-
-
-doctor_t* doctor_crear (char* nombre , especialidad_t* especialidad);
-bool doctor_eliminar (doctor_t* doctor);
-paciente_t* doctor_atender_paciente (doctor_t* doctor);
-
-
-especialidad_t* especialidad_crear (char* nombre);
-bool especialidad_eliminar (especialidad_t* especialidad);
-
-int comparacion_años (paciente_t* a , paciente_t* b);
+void clinica_crear_informe(clinica_t *clinica, char *ini, char *fin);

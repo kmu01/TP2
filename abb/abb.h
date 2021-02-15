@@ -63,7 +63,7 @@ void abb_destruir(abb_t *arbol);
 ******* ITERADOR *******
 ******* EXTERNO  *******
  */
-void abb_in_order(abb_t *arbol, bool visitar(const char *, void *, void *), void *extra);
+void abb_in_order(abb_t *arbol, char* ini, char* fin, bool visitar(const char *, void *, void *), void *extra);
 
 /*iterador interno */
 typedef struct abb_iter abb_iter_t;
