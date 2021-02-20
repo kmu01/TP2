@@ -41,11 +41,11 @@ struct hash_iter{
 // Funcion de hasinh
 // Se usa la funcion sdbm, la segunda listada en: www.cse.yorku.ca/~oz/hash.html
 size_t f_hash(const char *str){
-	size_t hash = 0;
+	int hash = 0;
         int c;
         while ((c = *str++))
             hash = c + (hash << 6) + (hash << 16) - hash;
-	return hash;
+	return (size_t)hash;
 }
 
 // Reserva memoria para la tabla de hash, y declaro a cada nodo contenido como vacio.

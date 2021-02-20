@@ -84,7 +84,6 @@ int main(int argc, char** argv) {
 	if (argc != 3){
 		return 1;
 	}
-
 	abb_t* doctores = NULL;
 	hash_t* especialidades = NULL;
 	int aux = cargar_doctores_y_especialidades(argv[0], doctores, especialidades);
@@ -100,9 +99,9 @@ int main(int argc, char** argv) {
 	}
 	clinica_t* clinica = clinica_crear (especialidades , doctores , pacientes);
 	procesar_entrada(clinica);
-	hash_destruir(pacientes);
-	abb_destruir(doctores);
-	hash_destruir(especialidades);
+	hash_destruir (pacientes);
+    abb_destruir (doctores);
+    hash_destruir (especialidades);
 	clinica_destruir (clinica);
 	return 0;
 }
