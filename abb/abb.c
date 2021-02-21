@@ -117,22 +117,37 @@ void _abb_destruir (abb_nodo_t* nodo,abb_destruir_dato_t destruir_dato){
     free (nodo);
 }
 
-bool _abb_in_order (abb_nodo_t* nodo ,bool visitar(const char *, void *, void *),void* extra){
+
+bool _abb_in_order (abb_nodo_t* nodo, char* ini, char* fin, bool visitar(const char *, void *, void *),void* extra, abb_comparar_clave_t cmp){
     if (nodo == NULL){
         return true;
     }
-    if (! _abb_in_order (nodo->izquierdo , visitar , extra)){
+
+    int cmp_ini;
+    int cmp_fin;
+
+    if (ini) cmp_ini = cmp(ini, nodo->clave);
+    else cmp_ini = -1;
+
+    if (fin) cmp_fin = cmp(fin, nodo->clave);
+    else cmp_fin = 1;
+
+    bool todo_ok = true;
+    if (cmp_ini < 0){
+        todo_ok = _abb_in_order (nodo->izquierdo, ini, fin, visitar, extra, cmp);
+    }
+    if (todo_ok && cmp_ini < 1 && cmp_fin > 1){
+        todo_ok = visitar(nodo->clave, nodo->dato, extra);
+        if (cmp_fin == 0) todo_ok = false;
+    }
+    if (!todo_ok){
         return false;
     }
-    if (!visitar(nodo->clave, nodo->dato, extra)){
-        return false;
-    }
-    if (! _abb_in_order (nodo->derecho , visitar , extra)){
+    if (!_abb_in_order(nodo->derecho, ini, fin, visitar, extra, cmp)){
         return false;
     }
     return true;
 }
-
 
 /* PRIMITIVAS ARBOL */
 
@@ -286,13 +301,12 @@ void abb_destruir(abb_t *arbol){
 /* Iterador interno - Utiliza una funcion wrapper
  para poder trabjar recursivamente con nodos */
 
-void abb_in_order(abb_t *arbol, bool visitar(const char *, void *, void *), void *extra){
+void abb_in_order(abb_t *arbol, char* ini, char* fin, bool visitar(const char *, void *, void *), void *extra){
     if (!arbol || !arbol->raiz->clave){
         return;
     }
-    _abb_in_order(arbol->raiz,visitar,extra);
+    _abb_in_order(arbol->raiz, ini, fin, visitar, extra, arbol->comparar_clave);
 }
-
 /* Iterador externo */
 
 struct abb_iter{
