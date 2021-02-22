@@ -110,24 +110,24 @@ void _abb_destruir (abb_nodo_t* nodo,abb_destruir_dato_t destruir_dato){
     if(nodo->derecho!=NULL){
         _abb_destruir(nodo->derecho,destruir_dato);
     }
-    if (destruir_dato != NULL){
+    if (destruir_dato != NULL && nodo->dato != NULL){
         destruir_dato (nodo->dato);
     }
     free (nodo->clave);
     free (nodo);
 }
 
-bool _abb_in_order (abb_nodo_t* nodo ,bool visitar(const char *, void *, void *),void* extra){
+bool _abb_in_order (abb_nodo_t* nodo, char* ini, char* fin, bool visitar(const char *, void *, void *, char*, char*),void* extra){
     if (nodo == NULL){
         return true;
     }
-    if (! _abb_in_order (nodo->izquierdo , visitar , extra)){
+    if (! _abb_in_order (nodo->izquierdo, ini, fin, visitar , extra)){
         return false;
     }
-    if (!visitar(nodo->clave, nodo->dato, extra)){
+    if (!visitar(nodo->clave, nodo->dato, extra, ini, fin)){
         return false;
     }
-    if (! _abb_in_order (nodo->derecho , visitar , extra)){
+    if (! _abb_in_order (nodo->derecho, ini, fin, visitar , extra)){
         return false;
     }
     return true;
@@ -286,11 +286,11 @@ void abb_destruir(abb_t *arbol){
 /* Iterador interno - Utiliza una funcion wrapper
  para poder trabjar recursivamente con nodos */
 
-void abb_in_order(abb_t *arbol, bool visitar(const char *, void *, void *), void *extra){
+void abb_in_order(abb_t *arbol, char* ini, char* fin, bool visitar(const char *, void *, void *, char*, char*), void *extra){
     if (!arbol || !arbol->raiz->clave){
         return;
     }
-    _abb_in_order(arbol->raiz,visitar,extra);
+    _abb_in_order(arbol->raiz, ini, fin, visitar,extra);
 }
 
 /* Iterador externo */
