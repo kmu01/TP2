@@ -82,16 +82,17 @@ void procesar_entrada(clinica_t* clinica) {
 
 int main(int argc, char** argv) {
 	if (argc != 3){
+		printf (ENOENT_CANT_PARAMS);
 		return 1;
 	}
-	abb_t* doctores = NULL;
-	hash_t* especialidades = NULL;
-	int aux = cargar_doctores_y_especialidades(argv[0], doctores, especialidades);
+	abb_t* doctores = crear_abb_doctores();
+	hash_t* especialidades = crear_hash_especialidades();
+	int aux = cargar_doctores_y_especialidades(argv[1], doctores, especialidades);
 	if (aux == 1){
 		return 1;
 	}
-	hash_t* pacientes = cargar_pacientes(argv[1]);
-	if (!pacientes || !doctores || !especialidades) {
+	hash_t* pacientes = cargar_pacientes(argv[2]);
+	if (!pacientes || !doctores || !especialidades){
 		if (pacientes) hash_destruir(pacientes);
 		if (doctores) abb_destruir(doctores);
 		if (especialidades) hash_destruir(especialidades);

@@ -39,21 +39,47 @@ typedef struct doctor{
 
 //***************************  AUXILIARES  ***************************
 
-bool contar_doctores(const char *clave, void *valor, void *extra) {
-    size_t* cont = extra;
-    *cont = *cont + 1;
-    return true;
+bool contar_doctores(const char *clave, void *valor, void *extra, char* ini, char* fin){
+    if (strcmp(clave, ini)<0){
+        return true;
+    }
+    else if (strcmp(clave, ini) >= 0 && strcmp (clave, fin)<=0 ||strcmp(clave, ini) >= 0 && strcmp (fin, "")==0){
+        size_t* cont = (size_t*)(extra);
+        *cont = *cont + 1;
+        return true;
+    }
+    else{
+        return false;
+    }
 }
 
-bool imprimir_doctores(const char *clave, void *valor, void *extra) {
-    size_t* cont = extra;
-    *cont = *cont + 1;
-    doctor_t* doctor = valor;
-    printf(INFORME_DOCTOR, *cont, doctor->nombre, doctor->especialidad->nombre, doctor->pacientes_atendidos);
-    return true;
+bool imprimir_doctores(const char *clave, void *valor, void *extra, char* ini, char* fin){
+    if (strcmp(clave, ini)<0){
+        return true;
+    }
+    else if (strcmp(clave, ini) >= 0 && strcmp (clave, fin)<=0 ||strcmp(clave, ini) >= 0 && strcmp (fin, "")==0){
+        size_t* cont = (size_t*)(extra);
+        *cont = *cont + 1;
+        doctor_t* doctor = (doctor_t*)(valor);
+        printf(INFORME_DOCTOR, *cont, doctor->nombre, doctor->especialidad->nombre, doctor->pacientes_atendidos);
+        return true;
+    }
+    else{
+        return false;
+    }
 }
 
-
+int comparacion_anios (const void* a , const void* b){
+    paciente_t* paciente_a = (paciente_t*) (a);
+    paciente_t* paciente_b = (paciente_t*) (b);
+    if (paciente_a->anio < paciente_b->anio){
+        return -1;
+    }
+    else if (paciente_a->anio > paciente_b->anio){
+        return 1;
+    }
+    return 0;
+}
 
 //***************************  PACIENTE  ***************************
 
@@ -105,6 +131,7 @@ doctor_t* doctor_crear (char* nombre , especialidad_t* especialidad){
 }
 
 bool doctor_eliminar (doctor_t* doctor){
+    free (doctor->nombre);
     free (doctor);
     return true;
 }
@@ -128,19 +155,6 @@ paciente_t* doctor_atender_paciente (doctor_t* doctor){
 
 //***************************  ESPECIALIDAD  ***************************
 
-/*   Funcion comparacion de anios   */
-int comparacion_anios (const void* a , const void* b){
-    paciente_t* paciente_a = (paciente_t*) (a);
-    paciente_t* paciente_b = (paciente_t*) (b);
-    if (paciente_a->anio < paciente_b->anio){
-        return -1;
-    }
-    else if (paciente_a->anio > paciente_b->anio){
-        return 1;
-    }
-    return 0;
-}
-
 /*   Creo las primirivas de especialidad   */
 especialidad_t* especialidad_crear (char* nombre){
     especialidad_t* especialidad = malloc (sizeof(especialidad_t));
@@ -155,7 +169,7 @@ especialidad_t* especialidad_crear (char* nombre){
     heap_t* regulares = heap_crear (comparacion_anios);
     if (regulares == NULL){
         free (especialidad);
-        free (urgentes);
+        cola_destruir(urgentes, NULL);
         return NULL;
     }
     especialidad->nombre = nombre;
@@ -254,9 +268,8 @@ void clinica_atender_paciente (clinica_t* clinica, char* nombre_doctor){
 
 void clinica_crear_informe(clinica_t *clinica, char *ini, char *fin){
     size_t cont = 0;
-    if (strcmp(ini, "") == 0) ini = NULL;
-	if (strcmp(fin, "") == 0) fin = NULL;
     abb_in_order(clinica->doctores, ini, fin, contar_doctores, &cont);
+    printf (DOCTORES_SISTEMA,cont);
     cont = 0;
     abb_in_order(clinica->doctores, ini, fin, imprimir_doctores, &cont);
 }
@@ -272,27 +285,32 @@ void eliminar_fin_linea(char* linea) {
 	}
 }
 
-int procesar_doctores (char* archivo , abb_t* doctores , hash_t* especialidades){
+int cargar_doctores_y_especialidades (char* archivo , abb_t* doctores , hash_t* especialidades){
 	char* linea = NULL;
 	size_t buffer = 0;
 	FILE* archivo_abierto = fopen(archivo , "r");
 	if (archivo_abierto == NULL){
+        printf (ENOENT_ARCHIVO,archivo);
 		return 1;
 	}
 	while (getline(&linea , &buffer , archivo_abierto) > 0){
 		eliminar_fin_linea(linea);
 		char** campos = split (linea , ',');
 		if (!hash_pertenece (especialidades , campos[1])){
-			char* nombre_especialidad = malloc (sizeof (campos[1]));
+			char* nombre_especialidad = malloc (sizeof(char)*strlen(campos[1])+1);
 			strcpy (nombre_especialidad , campos[1]);
 			especialidad_t* especialidad = especialidad_crear (nombre_especialidad);
 			hash_guardar (especialidades , campos[1] , especialidad);
 		}
+        char* nombre_doctor = malloc (sizeof(char)*strlen(campos[0])+1);
+        strcpy (nombre_doctor, campos[0]);
 		especialidad_t* especialidad = hash_obtener (especialidades , campos[1]);
-		doctor_t* doctor = doctor_crear (campos[0] , especialidad);
+		doctor_t* doctor = doctor_crear (nombre_doctor , especialidad);
 		abb_guardar (doctores , campos[0] , doctor);
 		free_strv(campos);
 	}
+    free (linea);
+    fclose (archivo_abierto);
 	return 0;
 }
 
@@ -301,14 +319,16 @@ int procesar_pacientes (char* archivo , hash_t* pacientes){
 	size_t buffer = 0;
 	FILE* archivo_abierto = fopen(archivo , "r");
 	if (archivo_abierto == NULL){
+        printf (ENOENT_ARCHIVO,archivo);
 		return 1;
 	}
 	while (getline(&linea , &buffer , archivo_abierto) > 0){
 		eliminar_fin_linea(linea);
 		char** campos = split (linea , ',');
-		char* nombre_paciente = malloc (sizeof(campos[0]));
+		char* nombre_paciente = malloc (sizeof(campos[0])+1);
 		strcpy (nombre_paciente, campos[0]);
 		if (!isdigit (campos[1])){
+            printf (ENOENT_ANIO,campos[1]);
 			return 1;
 		}
 		size_t anio = (size_t)(campos[1]);
@@ -316,14 +336,17 @@ int procesar_pacientes (char* archivo , hash_t* pacientes){
 		hash_guardar (pacientes , campos[0] , paciente);
 		free_strv(campos);
 	}
+    free (linea);
+    fclose(archivo_abierto);
 	return 0;
 }
 
+abb_t* crear_abb_doctores (void){
+    return abb_crear (strcmp, _doctor_eliminar);
+}
 
-int cargar_doctores_y_especialidades(char* archivo, abb_t* doctores, hash_t* especialidades){
-    doctores = abb_crear(strcmp , _doctor_eliminar);
-    especialidades = hash_crear(_especialidad_eliminar);
-    return procesar_doctores(archivo , doctores , especialidades);
+hash_t* crear_hash_especialidades (void){
+    return hash_crear (_especialidad_eliminar);
 }
 
 
@@ -332,4 +355,3 @@ hash_t* cargar_pacientes(char* archivo){
     if (procesar_pacientes(archivo, pacientes) == 1) return NULL;
     return pacientes;
 }
-
